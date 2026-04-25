@@ -10,9 +10,31 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: LoginPage(),
+
+      // 🔥 TAMBAHAN THEME DI SINI
+      theme: ThemeData(
+        primaryColor: const Color(0xFF624D42),
+        scaffoldBackgroundColor: Colors.grey[100],
+
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF624D42),
+          elevation: 0,
+          centerTitle: true,
+        ),
+
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.black,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      ),
+
+      home: const LoginPage(),
     );
   }
 }
