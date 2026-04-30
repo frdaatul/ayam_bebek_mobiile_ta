@@ -1,0 +1,18 @@
+# Handle line endings automatically for files detected as text 
+# and leave binary files untouched.
+* text=auto
+
+# Force LF (Unix-style) for all text files to maintain consistency 
+# with the Flutter/Dart ecosystem.
+*.dart text eol=lf
+*.yaml text eol=lf
+*.lock text eol=lf
+*.md text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+
+# Explicitly set line endings for Windows-specific files if needed
+*.bat text eol=crlf
+*.ps1 text eol=crlf

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../services/session_service.dart';
+import '../../utils/notification_helper.dart';
 import '../home/home_page.dart';
 import '../register/register_page.dart';
 
@@ -24,13 +25,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
 
-  // Untuk notifikasi yang bisa ditutup
-  late OverlayEntry? _currentOverlayEntry;
-
   @override
   void initState() {
     super.initState();
-    _currentOverlayEntry = null;
 
     _fadeAnimationController = AnimationController(
       duration: const Duration(milliseconds: 300),
@@ -60,175 +57,15 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     passwordController.dispose();
     _fadeAnimationController.dispose();
     _slideAnimationController.dispose();
-    _currentOverlayEntry?.remove();
     super.dispose();
   }
 
-  void _showNotification(dynamic message, {bool isError = true}) {
-    // 1. Hapus notifikasi lama dan pastikan variabel direset ke null
-    if (_currentOverlayEntry != null) {
-      _currentOverlayEntry?.remove();
-      _currentOverlayEntry = null;
-    }
 
-    final overlay = Overlay.of(context);
-    late OverlayEntry overlayEntry;
-
-    String? title;
-    List<String> messages = [];
-
-    if (message is String) {
-      messages.add(message);
-    } else if (message is List) {
-      messages = message.map((e) => e.toString()).toList();
-    } else if (message is Map) {
-      title = message['title']?.toString();
-      if (message['list'] is List) {
-        messages = (message['list'] as List).map((e) => e.toString()).toList();
-      } else if (message['message'] != null) {
-        messages.add(message['message'].toString());
-      }
-    }
-
-    late AnimationController notificationAnimController;
-    notificationAnimController = AnimationController(
-      duration: const Duration(milliseconds: 400),
-      vsync: this,
-    );
-
-    final slideInAnimation = Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero)
-        .animate(CurvedAnimation(parent: notificationAnimController, curve: Curves.easeOut));
-
-    overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        top: 50,
-        right: 20,
-        left: 20,
-        child: Material(
-          color: Colors.transparent,
-          child: SlideTransition(
-            position: slideInAnimation,
-            child: Container(
-              constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.9),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                // Warna menyesuaikan status Error atau Sukses
-                color: isError
-                    ? Colors.redAccent.withOpacity(0.95)
-                    : Colors.greenAccent[700]!.withOpacity(0.95),
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
-                    blurRadius: 15,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    isError ? Icons.error_outline : Icons.check_circle_outline,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                  const SizedBox(width: 12),
-                  Flexible(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (title != null)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 4),
-                            child: Text(
-                              title,
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-                            ),
-                          ),
-                        ...messages.map((msg) => Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: (messages.length > 1 || title != null)
-                              ? Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Padding(
-                                      padding: EdgeInsets.only(top: 4, right: 6),
-                                      child: Icon(Icons.circle, color: Colors.white, size: 6),
-                                    ),
-                                    Flexible(
-                                      child: Text(
-                                        msg,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              : Text(
-                                  msg,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                        )).toList(),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: () {
-                      notificationAnimController.reverse().then((_) {
-                        if (overlayEntry.mounted) {
-                          overlayEntry.remove();
-                          // 2. Reset ke null saat ditutup manual agar bisa klik lagi
-                          if (_currentOverlayEntry == overlayEntry) {
-                            _currentOverlayEntry = null;
-                          }
-                        }
-                      });
-                    },
-                    child: const Icon(Icons.close_rounded, color: Colors.white, size: 22),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-
-    _currentOverlayEntry = overlayEntry;
-    overlay.insert(overlayEntry);
-    notificationAnimController.forward();
-
-    // Otomatis hilang setelah 5 detik
-    Future.delayed(const Duration(seconds: 5), () {
-      if (overlayEntry.mounted) {
-        notificationAnimController.reverse().then((_) {
-          if (overlayEntry.mounted) {
-            overlayEntry.remove();
-            // 3. Reset ke null saat hilang otomatis
-            if (_currentOverlayEntry == overlayEntry) {
-              _currentOverlayEntry = null;
-            }
-          }
-        });
-      }
-    });
-  }
 
   Future<void> _handleLogin() async {
-    setState(() => _isLoading = true); 
+    setState(() => _isLoading = true);
 
-    const String apiUrl = "http://192.168.2.11:8000/api/login";
+    const String apiUrl = "http://192.168.22.39:8000/api/login";
 
     try {
       final response = await http.post(
@@ -243,7 +80,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       final responseData = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
-        _showNotification(responseData['message'] ?? "Login Berhasil!", isError: false);
+        NotificationHelper.show(context, responseData['message'] ?? "Login Berhasil!", isError: false);
 
         Session.token = responseData['data']['token'];
         Session.user = responseData['data']['user'];
@@ -268,13 +105,13 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
               allErrors.add(value.toString());
             }
           });
-          _showNotification(allErrors);
+          NotificationHelper.show(context, allErrors, isError: true);
         } else {
-          _showNotification(responseData['message'] ?? "Login gagal. Periksa kembali email dan password Anda.");
+          NotificationHelper.show(context, responseData['message'] ?? "Login gagal. Periksa kembali email dan password Anda.", isError: true);
         }
       }
     } catch (e) {
-      _showNotification("Gagal terhubung ke server. Pastikan backend aktif.");
+      NotificationHelper.show(context, "Gagal terhubung ke server. Pastikan backend aktif.", isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

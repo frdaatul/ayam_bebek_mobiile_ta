@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'screens/login/login_page.dart';
+import 'models/cart_model.dart';
+import 'models/favorite_model.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await CartModel.loadCart();
+  await FavoriteModel.loadFavorites();
   runApp(const MyApp());
 }
 

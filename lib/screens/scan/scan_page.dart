@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import '../../utils/notification_helper.dart';
 import '../tracking/tracking_page.dart';
 
 class ScanPage extends StatefulWidget {
@@ -32,9 +33,7 @@ class _ScanPageState extends State<ScanPage> {
               isScanned = true;
 
               // tampilkan hasil scan
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text("Kode: $code")),
-              );
+              NotificationHelper.show(context, "Kode: $code", isError: false);
 
               // pindah ke tracking
               Navigator.push(

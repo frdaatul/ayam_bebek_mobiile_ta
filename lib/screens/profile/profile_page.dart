@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:io';
 import '../../services/session_service.dart';
+import '../../utils/notification_helper.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -21,15 +22,12 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
 
   File? _imageFile;
   final ImagePicker _picker = ImagePicker();
+  // State variables
   bool _isLoading = false;
-
-  // Untuk notifikasi yang bisa ditutup
-  late OverlayEntry? _currentOverlayEntry;
 
   @override
   void initState() {
     super.initState();
-    _currentOverlayEntry = null;
     final user = Session.user ?? {};
     nameController = TextEditingController(text: user['name'] ?? "");
     emailController = TextEditingController(text: user['email'] ?? "");
@@ -43,7 +41,6 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
     emailController.dispose();
     phoneController.dispose();
     addressController.dispose();
-    _currentOverlayEntry?.remove();
     super.dispose();
   }
 
@@ -54,132 +51,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
     }
   }
 
-  void _showNotification(dynamic message, {bool isError = true}) {
-    // 1. Hapus notifikasi lama
-    if (_currentOverlayEntry != null) {
-      _currentOverlayEntry?.remove();
-      _currentOverlayEntry = null;
-    }
 
-    final overlay = Overlay.of(context);
-    late OverlayEntry overlayEntry;
-
-    String? title;
-    List<String> messages = [];
-
-    if (message is String) {
-      messages.add(message);
-    } else if (message is List) {
-      messages = message.map((e) => e.toString()).toList();
-    } else if (message is Map) {
-      title = message['title']?.toString();
-      if (message['list'] is List) {
-        messages = (message['list'] as List).map((e) => e.toString()).toList();
-      } else if (message['message'] != null) {
-        messages.add(message['message'].toString());
-      }
-    }
-
-    late AnimationController notificationAnimController;
-    notificationAnimController = AnimationController(
-      duration: const Duration(milliseconds: 400),
-      vsync: this,
-    );
-
-    final slideInAnimation = Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero)
-        .animate(CurvedAnimation(parent: notificationAnimController, curve: Curves.easeOut));
-
-    overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        top: 50,
-        right: 20,
-        left: 20,
-        child: Material(
-          color: Colors.transparent,
-          child: SlideTransition(
-            position: slideInAnimation,
-            child: Container(
-              constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.9),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: isError ? Colors.redAccent.withOpacity(0.95) : Colors.greenAccent[700]!.withOpacity(0.95),
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 5)),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(isError ? Icons.error_outline : Icons.check_circle_outline, color: Colors.white, size: 24),
-                  const SizedBox(width: 12),
-                  Flexible(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (title != null)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 4),
-                            child: Text(
-                              title,
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-                            ),
-                          ),
-                        ...messages.map((msg) => Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: (messages.length > 1 || title != null)
-                              ? Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Padding(
-                                      padding: EdgeInsets.only(top: 4, right: 6),
-                                      child: Icon(Icons.circle, color: Colors.white, size: 6),
-                                    ),
-                                    Flexible(child: Text(msg, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13))),
-                                  ],
-                                )
-                              : Text(msg, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13)),
-                        )).toList(),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: () {
-                      notificationAnimController.reverse().then((_) {
-                        if (overlayEntry.mounted) {
-                          overlayEntry.remove();
-                          if (_currentOverlayEntry == overlayEntry) _currentOverlayEntry = null;
-                        }
-                      });
-                    },
-                    child: const Icon(Icons.close_rounded, color: Colors.white, size: 22),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-
-    _currentOverlayEntry = overlayEntry;
-    overlay.insert(overlayEntry);
-    notificationAnimController.forward();
-
-    Future.delayed(const Duration(seconds: 5), () {
-      if (overlayEntry.mounted) {
-        notificationAnimController.reverse().then((_) {
-          if (overlayEntry.mounted) {
-            overlayEntry.remove();
-            if (_currentOverlayEntry == overlayEntry) _currentOverlayEntry = null;
-          }
-        });
-      }
-    });
-  }
 
   Future<void> _handleUpdate() async {
     final user = Session.user ?? {};
@@ -190,13 +62,13 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
     bool isImageChanged = _imageFile != null;
 
     if (!isNameChanged && !isPhoneChanged && !isAddressChanged && !isImageChanged) {
-      _showNotification("Tidak ada perubahan data yang dilakukan.");
+      NotificationHelper.show(context, "Tidak ada perubahan data yang dilakukan.");
       return;
     }
 
     setState(() => _isLoading = true);
 
-    const String apiUrl = "http://192.168.2.11:8000/api/profile/update";
+    const String apiUrl = "http://192.168.22.39:8000/api/profile/update";
 
     try {
       var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
@@ -221,7 +93,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
         Session.user = responseData['data']['user'];
         setState(() => _imageFile = null);
 
-        _showNotification(responseData['message'] ?? "Profil berhasil diperbarui", isError: false);
+        NotificationHelper.show(context, responseData['message'] ?? "Profil berhasil diperbarui", isError: false);
       } else {
         if (responseData['errors'] != null) {
           List<String> allErrors = [];
@@ -232,13 +104,13 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
               allErrors.add(value.toString());
             }
           });
-          _showNotification(allErrors);
+          NotificationHelper.show(context, allErrors, isError: true);
         } else {
-          _showNotification(responseData['message'] ?? "Gagal memperbarui profil.");
+          NotificationHelper.show(context, responseData['message'] ?? "Gagal memperbarui profil.", isError: true);
         }
       }
     } catch (e) {
-      _showNotification("Gagal terhubung ke server. Periksa koneksi internet Anda.");
+      NotificationHelper.show(context, "Gagal terhubung ke server. Periksa koneksi internet Anda.", isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -248,7 +120,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   Widget build(BuildContext context) {
     final user = Session.user ?? {};
     String? avatarUrl = user['avatar'];
-    String fullAvatarUrl = avatarUrl != null ? "http://192.168.2.11:8000/storage/$avatarUrl" : "";
+    String fullAvatarUrl = avatarUrl != null ? "http://192.168.22.39:8000/storage/$avatarUrl" : "";
 
     return Scaffold(
       backgroundColor: Colors.white,
